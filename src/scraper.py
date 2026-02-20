@@ -6,6 +6,7 @@ import os
 from datetime import datetime
 import unicodedata
 import pandas as pd
+import re
 
 # ======================
 # CONFIGURACION
@@ -50,8 +51,10 @@ def normalize(text):
     )
 
 def contains_exact_word(text):
-    words = normalize(text).split()
-    return KEYWORD in words
+    text = normalize(text)
+    keyword_normalized = normalize(KEYWORD)
+    pattern = rf"\b{re.escape(keyword_normalized)}\b"
+    return re.search(pattern, text) is not None
 
 # ======================
 # BASE DE DATOS
