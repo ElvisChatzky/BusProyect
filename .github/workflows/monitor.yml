@@ -2,7 +2,7 @@ name: Monitor Noticias
 
 on:
   schedule:
-    - cron: "*/10 * * * *"
+    - cron: "*/5 * * * *"
   workflow_dispatch:
 
 jobs:
@@ -31,5 +31,5 @@ jobs:
           git config --global user.name "github-actions"
           git config --global user.email "actions@github.com"
           git add data || true
-          git commit -m "Update data" || echo "No changes"
+          git diff --cached --quiet || git commit -m "Update data"
           git push

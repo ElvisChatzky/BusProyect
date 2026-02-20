@@ -36,11 +36,11 @@ if hoy_file.exists():
     df_hoy = pd.read_csv(hoy_file)
     render_cards(df_hoy)
 else:
-    st.warning("No existe hoy.csv en la nube")
+    st.warning("No existe hoy.csv en el repo")
 
 if hist_file.exists():
     st.header("📚 Histórico")
     df_hist = pd.read_csv(hist_file)
     render_cards(df_hist.tail(50))
 else:
-    st.warning("No existe historico.csv en la nube")
+    st.warning("No existe historico.csv en el repo")

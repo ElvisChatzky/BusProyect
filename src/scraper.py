@@ -3,7 +3,7 @@ import requests
 from bs4 import BeautifulSoup
 import sqlite3
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 import unicodedata
 import pandas as pd
 import re
@@ -12,7 +12,8 @@ import re
 # CONFIGURACION
 # ======================
 
-KEYWORD = "argentina"  # <<< CAMBIAR ACA
+KEYWORD = "petri"  # <<< CAMBIAR ACA
+MAX_DIAS_HISTORICO = 30  # limpiar noticias más viejas que esto
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(BASE_DIR, "data")
@@ -75,6 +76,14 @@ def init_db():
     conn.commit()
     conn.close()
 
+def limpiar_historico():
+    limite = datetime.now() - timedelta(days=MAX_DIAS_HISTORICO)
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("DELETE FROM noticias WHERE fecha < ?", (limite.isoformat(),))
+    conn.commit()
+    conn.close()
+
 def noticia_existe(url):
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
@@ -99,7 +108,7 @@ def guardar_noticia(fecha, medio, titulo, url):
 
 def exportar_csv():
     conn = sqlite3.connect(DB_PATH)
-    df = pd.read_sql_query("SELECT * FROM noticias", conn)
+    df = pd.read_sql_query("SELECT * FROM noticias ORDER BY fecha DESC", conn)
     conn.close()
 
     if df.empty:
@@ -119,6 +128,7 @@ def ejecutar():
     init_db()
 
     for medio, feed_url in RSS_FEEDS.items():
+        print(f"Revisando {medio}...")
         feed = feedparser.parse(feed_url)
 
         for entry in feed.entries:
@@ -129,6 +139,7 @@ def ejecutar():
 
             try:
                 r = requests.get(url, timeout=10)
+                r.raise_for_status()
                 soup = BeautifulSoup(r.text, "html.parser")
                 texto = soup.get_text()
 
@@ -141,10 +152,13 @@ def ejecutar():
                     )
                     print("Nueva coincidencia:", entry.title)
 
-            except:
+            except Exception as e:
+                print("Error en:", url)
                 continue
 
+    limpiar_historico()
     exportar_csv()
+    print("Proceso finalizado")
 
 if __name__ == "__main__":
     ejecutar()
