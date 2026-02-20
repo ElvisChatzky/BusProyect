@@ -19,14 +19,15 @@ KEYWORD = "petri"
 
 # Cantidad de días hacia atrás que se mantienen en la base.
 # Cualquier noticia con fecha anterior se borra.
-MAX_DIAS_HISTORICO = 15
+MAX_DIAS_HISTORICO = 30
 
-# Si es True, en cada ejecución se limpia la base/CSVs y se
-# reconstruye todo con el criterio actual. Esto garantiza que
-# no queden noticias viejas mal filtradas. Una vez que todo
-# funcione como querés, podés ponerlo en False para conservar
-# el histórico entre corridas.
-RESETEAR_TODO_EN_CADA_EJECUCION = True
+# IMPORTANTE:
+# Ya corregida la lógica de filtrado, ahora nos conviene
+# conservar el histórico entre ejecuciones para ir
+# "acumulando" noticias a medida que aparecen en los RSS.
+#
+# Dejá este flag en False para NO borrar todo en cada corrida.
+RESETEAR_TODO_EN_CADA_EJECUCION = False
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(BASE_DIR, "data")
@@ -206,14 +207,27 @@ def ejecutar():
                 continue
 
             try:
-                # Usamos el título y el resumen/descripción del feed, que es
-                # lo que ve el usuario en el listado. Esto evita falsos
-                # positivos que venían de texto oculto o técnico en el HTML.
+                # 1) Texto disponible en el RSS (título + resumen/descripción)
                 titulo = getattr(entry, "title", "") or ""
                 resumen = getattr(entry, "summary", "") or ""
                 descripcion = getattr(entry, "description", "") or ""
 
-                texto = f"{titulo} {resumen} {descripcion}"
+                texto_rss = f"{titulo} {resumen} {descripcion}"
+
+                # 2) Intentamos también buscar en el CUERPO COMPLETO de la nota
+                #    descargando el HTML y extrayendo solo texto visible.
+                texto_html = ""
+                try:
+                    resp = requests.get(url, timeout=10, headers={
+                        "User-Agent": "Mozilla/5.0 (compatible; NoticiasPetriBot/1.0)"
+                    })
+                    if resp.status_code == 200:
+                        texto_html = extraer_texto_visible(resp.text)
+                except Exception:
+                    # Si falla la descarga o el parseo, seguimos solo con el RSS.
+                    texto_html = ""
+
+                texto = f"{texto_rss} {texto_html}"
 
                 total_entradas += 1
 
