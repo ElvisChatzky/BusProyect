@@ -13,10 +13,9 @@ from urllib.parse import urljoin
 # CONFIGURACION
 # ======================
 
-# Frase exacta a buscar en las noticias.
-# Usamos "luis petri" para enfocarnos solo en notas sobre
-# la persona y evitar falsos positivos con otros usos de "petri".
-KEYWORD = "luis petri"
+# Palabra o frase a buscar en las noticias.
+# En tu caso queremos cualquier mención a "petri".
+KEYWORD = "petri"
 
 # Cantidad de días hacia atrás que se mantienen en la base.
 # Cualquier noticia con fecha anterior se borra.
