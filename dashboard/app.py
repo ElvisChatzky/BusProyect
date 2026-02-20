@@ -1,14 +1,16 @@
 import streamlit as st
 import pandas as pd
-import os
+from pathlib import Path
 
 st.set_page_config(page_title="Monitor de Noticias", layout="wide")
 
-BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DATA = os.path.join(BASE, "data")
-
 st.title("📡 Monitor de Noticias")
 st.markdown("---")
+
+DATA_PATH = Path("data")
+
+hoy_file = DATA_PATH / "hoy.csv"
+hist_file = DATA_PATH / "historico.csv"
 
 def render_cards(df):
     for _, row in df.iterrows():
@@ -29,15 +31,16 @@ def render_cards(df):
             unsafe_allow_html=True
         )
 
-hist_path = os.path.join(DATA, "historico.csv")
-hoy_path = os.path.join(DATA, "hoy.csv")
-
-if os.path.exists(hoy_path):
+if hoy_file.exists():
     st.header("📰 Noticias de Hoy")
-    df_hoy = pd.read_csv(hoy_path)
+    df_hoy = pd.read_csv(hoy_file)
     render_cards(df_hoy)
+else:
+    st.warning("No existe hoy.csv en la nube")
 
-if os.path.exists(hist_path):
+if hist_file.exists():
     st.header("📚 Histórico")
-    df_hist = pd.read_csv(hist_path)
+    df_hist = pd.read_csv(hist_file)
     render_cards(df_hist.tail(50))
+else:
+    st.warning("No existe historico.csv en la nube")
