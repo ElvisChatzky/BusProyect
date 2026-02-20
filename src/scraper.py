@@ -13,13 +13,20 @@ from urllib.parse import urljoin
 # CONFIGURACION
 # ======================
 
-KEYWORD = "petri"  # <<< CAMBIAR ACA
-MAX_DIAS_HISTORICO = 30  # limpiar noticias más viejas que esto
+# Frase exacta a buscar en las noticias.
+# Usamos "luis petri" para enfocarnos solo en notas sobre
+# la persona y evitar falsos positivos con otros usos de "petri".
+KEYWORD = "luis petri"
+
+# Cantidad de días hacia atrás que se mantienen en la base.
+# Cualquier noticia con fecha anterior se borra.
+MAX_DIAS_HISTORICO = 15
 
 # Si es True, en cada ejecución se limpia la base/CSVs y se
-# reconstruye todo con el criterio actual. Así evitamos que
-# se sigan mostrando noticias viejas agregadas con lógica
-# anterior que ya no coincide con la palabra clave.
+# reconstruye todo con el criterio actual. Esto garantiza que
+# no queden noticias viejas mal filtradas. Una vez que todo
+# funcione como querés, podés ponerlo en False para conservar
+# el histórico entre corridas.
 RESETEAR_TODO_EN_CADA_EJECUCION = True
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -61,6 +68,9 @@ def normalize(text):
 def contains_exact_word(text):
     text = normalize(text)
     keyword_normalized = normalize(KEYWORD)
+    # Como KEYWORD es una frase ("luis petri"), usamos una
+    # búsqueda de frase completa, respetando límites de palabra
+    # al inicio y al final para evitar partes de palabras.
     pattern = rf"\b{re.escape(keyword_normalized)}\b"
     return re.search(pattern, text) is not None
 
@@ -154,13 +164,19 @@ def exportar_csv():
     df = pd.read_sql_query("SELECT * FROM noticias ORDER BY fecha DESC", conn)
     conn.close()
 
+    # Aseguramos que existan siempre los CSV, aunque no haya coincidencias.
     if df.empty:
-        return
+        columnas = ["fecha", "medio", "titulo", "url"]
+        df = pd.DataFrame(columns=columnas)
 
     df.to_csv(CSV_HIST, index=False)
 
     hoy = datetime.now().date().isoformat()
-    df_hoy = df[df["fecha"].str.startswith(hoy)]
+    if not df.empty and "fecha" in df.columns:
+        df_hoy = df[df["fecha"].astype(str).str.startswith(hoy)]
+    else:
+        df_hoy = pd.DataFrame(columns=df.columns)
+
     df_hoy.to_csv(CSV_HOY, index=False)
 
 # ======================
