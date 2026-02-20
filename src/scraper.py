@@ -200,27 +200,23 @@ def ejecutar():
                 continue
 
             try:
-                # Descargamos la nota y buscamos la palabra en el texto visible
-                # (títulos y párrafos), no en todo el HTML crudo.
-                resp = requests.get(
-                    url,
-                    timeout=10,
-                    headers={
-                        "User-Agent": "Mozilla/5.0 (compatible; BusProyect/1.0)"
-                    },
-                )
-                resp.raise_for_status()
+                # Usamos el título y el resumen/descripción del feed, que es
+                # lo que ve el usuario en el listado. Esto evita falsos
+                # positivos que venían de texto oculto o técnico en el HTML.
+                titulo = getattr(entry, "title", "") or ""
+                resumen = getattr(entry, "summary", "") or ""
+                descripcion = getattr(entry, "description", "") or ""
 
-                texto_visible = extraer_texto_visible(resp.text)
+                texto = f"{titulo} {resumen} {descripcion}"
 
-                if contains_exact_word(texto_visible):
+                if contains_exact_word(texto):
                     guardar_noticia(
                         datetime.now().isoformat(),
                         medio,
-                        getattr(entry, "title", "(sin título)"),
+                        titulo or "(sin título)",
                         url,
                     )
-                    print("Nueva coincidencia:", getattr(entry, "title", "(sin título)"))
+                    print("Nueva coincidencia:", titulo or "(sin título)")
 
             except Exception as e:
                 print("Error en:", url, "-", e)
