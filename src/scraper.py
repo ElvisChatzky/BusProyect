@@ -66,13 +66,17 @@ def normalize(text):
     )
 
 def contains_exact_word(text):
-    text = normalize(text)
-    keyword_normalized = normalize(KEYWORD)
-    # Como KEYWORD es una frase ("luis petri"), usamos una
-    # búsqueda de frase completa, respetando límites de palabra
-    # al inicio y al final para evitar partes de palabras.
-    pattern = rf"\b{re.escape(keyword_normalized)}\b"
-    return re.search(pattern, text) is not None
+    """Devuelve True solo si TODAS las palabras de KEYWORD
+    aparecen en el texto normalizado. No usamos regex ni
+    coincidencias parciales, para evitar falsos positivos.
+    """
+    texto_norm = normalize(text)
+    keyword_norm = normalize(KEYWORD)
+    # Ej: "luis petri" -> ["luis", "petri"]
+    tokens = [t for t in keyword_norm.split() if t]
+    if not tokens:
+        return False
+    return all(tok in texto_norm for tok in tokens)
 
 
 def extraer_texto_visible(html: str) -> str:
@@ -189,6 +193,9 @@ def ejecutar():
 
     init_db()
 
+    total_entradas = 0
+    total_coincidencias = 0
+
     for medio, feed_url in RSS_FEEDS.items():
         print(f"Revisando {medio}...")
         feed = feedparser.parse(feed_url)
@@ -209,6 +216,8 @@ def ejecutar():
 
                 texto = f"{titulo} {resumen} {descripcion}"
 
+                total_entradas += 1
+
                 if contains_exact_word(texto):
                     guardar_noticia(
                         datetime.now().isoformat(),
@@ -217,6 +226,7 @@ def ejecutar():
                         url,
                     )
                     print("Nueva coincidencia:", titulo or "(sin título)")
+                    total_coincidencias += 1
 
             except Exception as e:
                 print("Error en:", url, "-", e)
@@ -224,7 +234,7 @@ def ejecutar():
 
     limpiar_historico()
     exportar_csv()
-    print("Proceso finalizado")
+    print(f"Proceso finalizado. Entradas revisadas: {total_entradas}, coincidencias: {total_coincidencias}")
 
 if __name__ == "__main__":
     ejecutar()
