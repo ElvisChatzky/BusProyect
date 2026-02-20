@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 import unicodedata
 import pandas as pd
 import re
+from urllib.parse import urljoin
 
 # ======================
 # CONFIGURACION
@@ -56,6 +57,28 @@ def contains_exact_word(text):
     keyword_normalized = normalize(KEYWORD)
     pattern = rf"\b{re.escape(keyword_normalized)}\b"
     return re.search(pattern, text) is not None
+
+
+def extraer_texto_visible(html: str) -> str:
+    """Extrae solo el texto visible típico de una nota (títulos y párrafos).
+
+    Esto reduce falsos positivos que antes venían de metadatos, scripts,
+    comentarios o secciones ocultas de la página.
+    """
+    soup = BeautifulSoup(html, "html.parser")
+
+    # Eliminar elementos que seguro no aportan contenido de la nota
+    for tag in ["script", "style", "noscript", "header", "footer", "nav", "aside", "form"]:
+        for elem in soup.find_all(tag):
+            elem.decompose()
+
+    textos = []
+    for elem in soup.find_all(["h1", "h2", "h3", "h4", "h5", "h6", "p", "li"]):
+        txt = elem.get_text(separator=" ", strip=True)
+        if txt:
+            textos.append(txt)
+
+    return " ".join(textos)
 
 # ======================
 # BASE DE DATOS
@@ -138,24 +161,30 @@ def ejecutar():
                 continue
 
             try:
-                # Usamos el título y el resumen del feed (lo que ve el usuario),
-                # en vez de todo el HTML de la nota, para evitar falsos positivos
-                # por menciones en secciones ocultas o metadatos.
-                titulo = getattr(entry, "title", "")
-                resumen = getattr(entry, "summary", "")
-                texto = f"{titulo} {resumen}"
+                # Descargamos la nota y buscamos la palabra en el texto visible
+                # (títulos y párrafos), no en todo el HTML crudo.
+                resp = requests.get(
+                    url,
+                    timeout=10,
+                    headers={
+                        "User-Agent": "Mozilla/5.0 (compatible; BusProyect/1.0)"
+                    },
+                )
+                resp.raise_for_status()
 
-                if contains_exact_word(texto):
+                texto_visible = extraer_texto_visible(resp.text)
+
+                if contains_exact_word(texto_visible):
                     guardar_noticia(
                         datetime.now().isoformat(),
                         medio,
-                        entry.title,
-                        url
+                        getattr(entry, "title", "(sin título)"),
+                        url,
                     )
-                    print("Nueva coincidencia:", entry.title)
+                    print("Nueva coincidencia:", getattr(entry, "title", "(sin título)"))
 
             except Exception as e:
-                print("Error en:", url)
+                print("Error en:", url, "-", e)
                 continue
 
     limpiar_historico()
