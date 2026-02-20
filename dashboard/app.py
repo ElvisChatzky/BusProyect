@@ -32,6 +32,26 @@ DATA_PATH = Path("data")
 hoy_file = DATA_PATH / "hoy.csv"
 hist_file = DATA_PATH / "historico.csv"
 
+# Lista completa de medios que queremos mostrar siempre en el filtro,
+# aunque todavía no tengan noticias cargadas.
+ALL_MEDIOS = [
+    "El Cronista",
+    "Infobae",
+    "DolarHoy",
+    "Clarín",
+    "La Nación",
+    "MDZ",
+    "Los Andes",
+    "Página12",
+    "Ámbito",
+    "Diario Uno",
+    "Sitio Andino",
+    "TN",
+    "El Intransigente",
+    "Mendoza Post",
+    "La Política Online",
+]
+
 
 @st.cache_data(show_spinner=False)
 def load_csv(path: Path):
@@ -50,7 +70,15 @@ def build_filter_controls(df: pd.DataFrame):
 
     st.sidebar.markdown("")  # pequeño espacio visual
 
-    medios = sorted(df["medio"].dropna().unique()) if (not df.empty and "medio" in df.columns) else []
+    medios_en_datos = (
+        sorted(df["medio"].dropna().unique())
+        if (not df.empty and "medio" in df.columns)
+        else []
+    )
+    # Unimos los medios que realmente existen en datos con la lista
+    # completa de medios deseados, para que siempre aparezcan todos
+    # en el filtro aunque todavía no tengan coincidencias.
+    medios = sorted(set(ALL_MEDIOS) | set(medios_en_datos))
     if medios:
         medios_sel = st.sidebar.multiselect(
             "Medios", medios, default=medios, key="global_medios"

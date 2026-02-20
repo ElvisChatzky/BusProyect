@@ -16,6 +16,12 @@ from urllib.parse import urljoin
 KEYWORD = "petri"  # <<< CAMBIAR ACA
 MAX_DIAS_HISTORICO = 30  # limpiar noticias más viejas que esto
 
+# Si es True, en cada ejecución se limpia la base/CSVs y se
+# reconstruye todo con el criterio actual. Así evitamos que
+# se sigan mostrando noticias viejas agregadas con lógica
+# anterior que ya no coincide con la palabra clave.
+RESETEAR_TODO_EN_CADA_EJECUCION = True
+
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(BASE_DIR, "data")
 DB_PATH = os.path.join(DATA_DIR, "noticias.db")
@@ -107,6 +113,20 @@ def limpiar_historico():
     conn.commit()
     conn.close()
 
+
+def resetear_datos_completos():
+    """Elimina la base y los CSV para empezar de cero."""
+    try:
+        if os.path.exists(DB_PATH):
+            os.remove(DB_PATH)
+        if os.path.exists(CSV_HOY):
+            os.remove(CSV_HOY)
+        if os.path.exists(CSV_HIST):
+            os.remove(CSV_HIST)
+    except Exception:
+        # Si por algún motivo no se puede borrar, seguimos igual.
+        pass
+
 def noticia_existe(url):
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
@@ -148,6 +168,9 @@ def exportar_csv():
 # ======================
 
 def ejecutar():
+    if RESETEAR_TODO_EN_CADA_EJECUCION:
+        resetear_datos_completos()
+
     init_db()
 
     for medio, feed_url in RSS_FEEDS.items():
