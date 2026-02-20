@@ -138,10 +138,12 @@ def ejecutar():
                 continue
 
             try:
-                r = requests.get(url, timeout=10)
-                r.raise_for_status()
-                soup = BeautifulSoup(r.text, "html.parser")
-                texto = soup.get_text()
+                # Usamos el título y el resumen del feed (lo que ve el usuario),
+                # en vez de todo el HTML de la nota, para evitar falsos positivos
+                # por menciones en secciones ocultas o metadatos.
+                titulo = getattr(entry, "title", "")
+                resumen = getattr(entry, "summary", "")
+                texto = f"{titulo} {resumen}"
 
                 if contains_exact_word(texto):
                     guardar_noticia(
